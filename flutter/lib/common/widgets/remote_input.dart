@@ -358,6 +358,15 @@ class _RawTouchGestureDetectorRegionState
     if (isNotTouchBasedDevice()) {
       return;
     }
+
+    // Mobile touch mode: a one-finger drag scrolls the remote system
+    // instead of holding and dragging the left mouse button.
+    if (isMobile && ffiModel.touchMode) {
+      _touchModePanStarted = true;
+      _mouseScrollIntegral = 0;
+      return;
+    }
+
     if (handleTouch) {
       if (lastTapDownDetails != null) {
         await ffi.cursorModel.move(lastTapDownDetails.localPosition.dx,
@@ -407,6 +416,26 @@ class _RawTouchGestureDetectorRegionState
     if (isNotTouchBasedDevice()) {
       return;
     }
+
+    // Mobile touch mode: one finger = mouse wheel scrolling.
+    if (isMobile && ffiModel.touchMode) {
+      if (!_touchModePanStarted) {
+        return;
+      }
+
+      // Smaller divisor = faster scrolling. Change 4 to 2 or 8 as needed.
+      _mouseScrollIntegral += d.delta.dy / 4;
+
+      while (_mouseScrollIntegral >= 1) {
+        inputModel.scroll(1);
+        _mouseScrollIntegral -= 1;
+      }
+      while (_mouseScrollIntegral <= -1) {
+        inputModel.scroll(-1);
+        _mouseScrollIntegral += 1;
+      }
+      return;
+    }
     if (ffi.cursorModel.shouldBlock(d.localPosition.dx, d.localPosition.dy)) {
       return;
     }
@@ -423,6 +452,11 @@ class _RawTouchGestureDetectorRegionState
 
   onOneFingerPanEnd(DragEndDetails d) async {
     _touchModePanStarted = false;
+
+    if (isMobile && ffiModel.touchMode) {
+      _mouseScrollIntegral = 0;
+      return;
+    }
     if (isNotTouchBasedDevice()) {
       return;
     }
@@ -443,10 +477,16 @@ class _RawTouchGestureDetectorRegionState
   // double-click problem on iPad with magic mouse.
   onOneFingerPanCancel() {
     _touchModePanStarted = false;
+    _mouseScrollIntegral = 0;
   }
 
   // scale + pan event
   onTwoFingerScaleStart(ScaleStartDetails d) {
+    if (isMobile && ffiModel.touchMode) {
+      _touchModePanStarted = false;
+      _mouseScrollIntegral = 0;
+    }
+
     _lastTapDownDetails = null;
     if (isNotTouchBasedDevice()) {
       return;
