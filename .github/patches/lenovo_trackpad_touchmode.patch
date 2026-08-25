@@ -1,0 +1,79 @@
+diff --git a/flutter/lib/models/input_model.dart b/flutter/lib/models/input_model.dart
+--- a/flutter/lib/models/input_model.dart
++++ b/flutter/lib/models/input_model.dart
+@@ -435,6 +435,7 @@ class InputModel {
+   int _trackpadSpeed = kDefaultTrackpadSpeed;
+   double _trackpadSpeedInner = kDefaultTrackpadSpeed / 100.0;
+   var _trackpadScrollUnsent = Offset.zero;
++  double _touchModeTrackpadScrollIntegral = 0.0;
+ 
+   // Mobile relative mouse delta accumulators (for slow/fine movements).
+   double _mobileDeltaRemainderX = 0.0;
+@@ -1304,8 +1305,14 @@ class InputModel {
+   void onPointerPanZoomStart(PointerPanZoomStartEvent e) {
+     _lastScale = 1.0;
++    _touchModeTrackpadScrollIntegral = 0.0;
+     _stopFling = true;
+     if (isViewOnly) return;
+     if (isViewCamera) return;
++    // On mobile in Touch mode, a physical trackpad should behave like
++    // an indirect touch surface. Do not forward a remote pan start here.
++    if (isMobile && (parent.target?.ffiModel.touchMode ?? false)) {
++      return;
++    }
+     if (peerPlatform == kPeerPlatformAndroid) {
+       handlePointerEvent('touch', kMouseEventTypePanStart, e.position);
+     }
+@@ -1316,5 +1323,40 @@ class InputModel {
+   void onPointerPanZoomUpdate(PointerPanZoomUpdateEvent e) {
+     if (isViewOnly) return;
+     if (isViewCamera) return;
++
++    // Physical keyboard trackpad while the mobile client is in Touch mode:
++    //   * two-finger pan -> remote scroll
++    //   * pinch -> local canvas zoom (same result as touchscreen pinch)
++    // One-finger pointer movement/clicks remain normal trackpad pointer input.
++    if (isMobile && (parent.target?.ffiModel.touchMode ?? false)) {
++      final target = parent.target;
++      if (target == null) return;
++
++      final previousScale = _lastScale;
++      final scaleChanged = (e.scale - previousScale).abs() > 0.002;
++      _lastScale = e.scale;
++
++      if (scaleChanged) {
++        target.canvasModel.updateScale(
++          e.scale / previousScale,
++          e.localPosition,
++        );
++        return;
++      }
++
++      // Keep the same scroll sensitivity/direction as the custom touchscreen
++      // one-finger scrolling patch in remote_input.dart.
++      _touchModeTrackpadScrollIntegral += e.panDelta.dy / 4;
++      while (_touchModeTrackpadScrollIntegral >= 1) {
++        unawaited(scroll(1));
++        _touchModeTrackpadScrollIntegral -= 1;
++      }
++      while (_touchModeTrackpadScrollIntegral <= -1) {
++        unawaited(scroll(-1));
++        _touchModeTrackpadScrollIntegral += 1;
++      }
++      return;
++    }
++
+     if (peerPlatform != kPeerPlatformAndroid) {
+       final scale = ((e.scale - _lastScale) * 1000).toInt();
+@@ -1429,5 +1469,11 @@ class InputModel {
+   void onPointerPanZoomEnd(PointerPanZoomEndEvent e) {
+     if (isViewCamera) return;
++    if (isMobile && (parent.target?.ffiModel.touchMode ?? false)) {
++      _lastScale = 1.0;
++      _touchModeTrackpadScrollIntegral = 0.0;
++      _trackpadLastDelta = Offset.zero;
++      return;
++    }
+     if (peerPlatform == kPeerPlatformAndroid) {
+       handlePointerEvent('touch', kMouseEventTypePanEnd, e.position);
+       return;
