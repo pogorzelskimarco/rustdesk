@@ -1,0 +1,203 @@
+diff --git a/flutter/lib/common/widgets/gestures.dart b/flutter/lib/common/widgets/gestures.dart
+--- a/flutter/lib/common/widgets/gestures.dart
++++ b/flutter/lib/common/widgets/gestures.dart
+@@ -10,7 +10,34 @@ enum GestureState {
+   threeFingerVerticalDrag
+ }
+ 
+-class CustomTouchGestureRecognizer extends ScaleGestureRecognizer {
++/// Lets a gesture recognizer ignore pointers from a specific device id — the
++/// Android trackpad (Xiaomi-style), whose 2-finger gesture is synthesized as a
++/// left-button drag with `kind=touch` and routed to scroll in `InputModel`.
++mixin IgnoreDeviceGestureRecognizerMixin on GestureRecognizer {
++  int? Function()? ignoredDeviceIdOf;
++
++  bool shouldIgnore(PointerDownEvent event) =>
++      event.device == ignoredDeviceIdOf?.call();
++
++  @override
++  void addAllowedPointer(PointerDownEvent event) {
++    if (shouldIgnore(event)) return;
++    super.addAllowedPointer(event);
++  }
++}
++
++class CustomTouchGestureRecognizer extends ScaleGestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {
+   CustomTouchGestureRecognizer({
+     Object? debugOwner,
+     Set<PointerDeviceKind>? supportedDevices,
+@@ -193,7 +220,21 @@ class CustomTouchGestureRecognizer extends ScaleGestureRecognizer {
+   }
+ }
+ 
+-class HoldTapMoveGestureRecognizer extends GestureRecognizer {
++class IgnoreDeviceTapGestureRecognizer extends TapGestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {}
++
++class IgnoreDeviceLongPressGestureRecognizer extends LongPressGestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {}
++
++class IgnoreDeviceDoubleTapGestureRecognizer
++    extends DoubleTapGestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {}
++
++class HoldTapMoveGestureRecognizer extends GestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {
+@@ -240,6 +281,7 @@ class HoldTapMoveGestureRecognizer extends GestureRecognizer {
+   @override
+   void addAllowedPointer(PointerDownEvent event) {
++    if (shouldIgnore(event)) return;
+     if (_firstTap != null) {
+@@ -461,7 +503,8 @@ class HoldTapMoveGestureRecognizer extends GestureRecognizer {
+-class DoubleFinerTapGestureRecognizer extends GestureRecognizer {
++class DoubleFinerTapGestureRecognizer extends GestureRecognizer
++    with IgnoreDeviceGestureRecognizerMixin {
+@@ -505,6 +548,7 @@ class DoubleFinerTapGestureRecognizer extends GestureRecognizer {
+   @override
+   void addAllowedPointer(PointerDownEvent event) {
++    if (shouldIgnore(event)) return;
+     debugPrint("addAllowedPointer");
+diff --git a/flutter/lib/common/widgets/remote_input.dart b/flutter/lib/common/widgets/remote_input.dart
+--- a/flutter/lib/common/widgets/remote_input.dart
++++ b/flutter/lib/common/widgets/remote_input.dart
+@@ -530,25 +530,30 @@ class _RawTouchGestureDetectorRegionState
+   makeGestures(BuildContext context) {
+     return <Type, GestureRecognizerFactory>{
+-      TapGestureRecognizer:
+-          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+-              () => TapGestureRecognizer(), (instance) {
++      IgnoreDeviceTapGestureRecognizer:
++          GestureRecognizerFactoryWithHandlers<IgnoreDeviceTapGestureRecognizer>(
++              () => IgnoreDeviceTapGestureRecognizer(), (instance) {
+         instance
++          ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+           ..onTapDown = onTapDown
+           ..onTapUp = onTapUp
+           ..onTap = onTap;
+       }),
+-      DoubleTapGestureRecognizer:
+-          GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+-              () => DoubleTapGestureRecognizer(), (instance) {
++      IgnoreDeviceDoubleTapGestureRecognizer:
++          GestureRecognizerFactoryWithHandlers<IgnoreDeviceDoubleTapGestureRecognizer>(
++              () => IgnoreDeviceDoubleTapGestureRecognizer(), (instance) {
+         instance
++          ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+           ..onDoubleTapDown = onDoubleTapDown
+           ..onDoubleTap = onDoubleTap;
+       }),
+-      LongPressGestureRecognizer:
+-          GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+-              () => LongPressGestureRecognizer(), (instance) {
++      IgnoreDeviceLongPressGestureRecognizer:
++          GestureRecognizerFactoryWithHandlers<IgnoreDeviceLongPressGestureRecognizer>(
++              () => IgnoreDeviceLongPressGestureRecognizer(), (instance) {
+         instance
++          ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+@@ -559,6 +564,7 @@ class _RawTouchGestureDetectorRegionState
+               () => HoldTapMoveGestureRecognizer(),
+               (instance) => instance
++                ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+@@ -567,6 +573,7 @@ class _RawTouchGestureDetectorRegionState
+               () => DoubleFinerTapGestureRecognizer(), (instance) {
+         instance
++          ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+@@ -576,6 +583,7 @@ class _RawTouchGestureDetectorRegionState
+         instance.onOneFingerPanStart =
+             (DragStartDetails d) => onOneFingerPanStart(context, d);
+         instance
++          ..ignoredDeviceIdOf = (() => inputModel.trackpadHoverDeviceId)
+diff --git a/flutter/lib/models/input_model.dart b/flutter/lib/models/input_model.dart
+--- a/flutter/lib/models/input_model.dart
++++ b/flutter/lib/models/input_model.dart
+@@ -440,6 +440,29 @@ class InputModel {
+   double _mobileDeltaRemainderX = 0.0;
+   double _mobileDeltaRemainderY = 0.0;
++
++  int? _trackpadHoverDeviceId;
++  bool _trackpadTwoFinger = false;
++
++  int? get trackpadHoverDeviceId => isDesktop ? null : _trackpadHoverDeviceId;
+@@ -1201,6 +1224,39 @@ class InputModel {
++  void _sendTrackpadTwoFingerScroll(double dx, double dy) {
++    if (isViewOnly || isViewCamera) return;
++    var delta = Offset(dx, dy) * _trackpadSpeedInner;
++    delta = _filterTrackpadDeltaAxis(delta);
++    if (peerPlatform == kPeerPlatformLinux) {
++      delta *= _trackpadAdjustPeerLinux;
++    }
++    _trackpadScrollUnsent += delta;
++    final x = _trackpadScrollUnsent.dx.truncate();
++    final y = _trackpadScrollUnsent.dy.truncate();
++    _trackpadScrollUnsent -= Offset(x.toDouble(), y.toDouble());
++    if (x == 0 && y == 0) return;
++    if (peerPlatform == kPeerPlatformAndroid) {
++      handlePointerEvent('touch', kMouseEventTypePanUpdate,
++          Offset(x.toDouble(), y.toDouble()));
++      return;
++    }
++    bind.sessionSendMouse(
++        sessionId: sessionId,
++        msg: json.encode(modify({'type': 'trackpad', 'x': '$x', 'y': '$y'})));
++  }
++
+@@ -1286,6 +1348,25 @@ class InputModel {
+   void onPointHoverImage(PointerHoverEvent e) {
+     _stopFling = true;
+     if (isViewOnly && !showMyCursor) return;
++    if (e.kind == ui.PointerDeviceKind.touch ||
++        e.kind == ui.PointerDeviceKind.trackpad) {
++      _trackpadHoverDeviceId = e.device;
++      if (_trackpadTwoFinger) return;
++      final canvasPosition = _pointerPositionForRemoteCanvas(e);
++      handleMouse(getMouseEventMove(), canvasPosition,
++          edgeScroll: useEdgeScroll);
++      return;
++    }
+     if (e.kind != ui.PointerDeviceKind.mouse) return;
+@@ -1519,6 +1611,20 @@ class InputModel {
+     if (isViewOnly && !showMyCursor) return;
+     if (isViewCamera) return;
++
++    if (!isDesktop &&
++        e.kind == ui.PointerDeviceKind.touch &&
++        (e.buttons & 0x1) != 0 &&
++        _trackpadHoverDeviceId != null &&
++        e.device == _trackpadHoverDeviceId) {
++      _trackpadTwoFinger = true;
++      _trackpadScrollUnsent = Offset.zero;
++      if (peerPlatform == kPeerPlatformAndroid) {
++        handlePointerEvent('touch', kMouseEventTypePanStart, e.position);
++      }
++      return;
++    }
+@@ -1564,6 +1676,19 @@ class InputModel {
++    if (!isDesktop &&
++        e.kind == ui.PointerDeviceKind.touch &&
++        _trackpadHoverDeviceId != null &&
++        e.device == _trackpadHoverDeviceId &&
++        _trackpadTwoFinger) {
++      _trackpadTwoFinger = false;
++      if (peerPlatform == kPeerPlatformAndroid) {
++        handlePointerEvent('touch', kMouseEventTypePanEnd, e.position);
++      }
++      return;
++    }
++
+     if (e.kind != ui.PointerDeviceKind.mouse) return;
+@@ -1581,6 +1709,19 @@ class InputModel {
+   void onPointMoveImage(PointerMoveEvent e) {
+     if (isViewOnly && !showMyCursor) return;
+     if (isViewCamera) return;
++
++    if (!isDesktop && e.kind == ui.PointerDeviceKind.touch) {
++      if (_trackpadHoverDeviceId != null &&
++          e.device == _trackpadHoverDeviceId &&
++          (e.buttons & 0x1) != 0) {
++        _trackpadTwoFinger = true;
++        _sendTrackpadTwoFingerScroll(e.delta.dx, e.delta.dy);
++      }
++      return;
++    }
+     if (e.kind != ui.PointerDeviceKind.mouse) return;
