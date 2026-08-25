@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-v3"
+  VERSION: "1.4.9-touch-scroll-trackpad-v4"
 
 jobs:
   generate-bridge:
@@ -80,38 +80,15 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           submodules: recursive
-          fetch-depth: 0
 
-      - name: Apply stable Android trackpad cursor fix
+      - name: Apply Android trackpad cursor fix
         shell: bash
         run: |
           set -euxo pipefail
-
-          # Fetch the upstream PR branch so the pinned commit is guaranteed to exist locally.
-          git fetch --no-tags https://github.com/rustdesk/rustdesk.git \
-            fix/android-trackpad-1finger-cursor:refs/remotes/upstream/trackpad-fix
-
-          TRACKPAD_FIX=57ef2c81fc3977c38c036f67630474b1d5d60109
-          git cat-file -e "${TRACKPAD_FIX}^{commit}"
-
-          # Take the final upstream versions of only the three files changed by the trackpad fix.
-          git checkout "${TRACKPAD_FIX}" -- \
-            flutter/lib/models/input_model.dart \
-            flutter/lib/common/widgets/gestures.dart \
-            flutter/lib/common/widgets/remote_input.dart
-
-          # Restore our custom touchscreen behaviour: one-finger drag = scroll.
-          git show 274ce023c454f1a6d8578cabaab67101b5f4662d --format= -- \
-            flutter/lib/common/widgets/remote_input.dart | git apply --3way -
-
-          # Reset a cancelled two-finger gesture so cursor movement cannot get stuck/hidden.
-          git apply .github/patches/android_trackpad_cancel_fix.patch
-
-          # Sanity checks: fail immediately if any expected piece is missing.
+          git apply --check .github/patches/upstream_android_trackpad_fix.patch
+          git apply .github/patches/upstream_android_trackpad_fix.patch
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
           grep -q "Mobile touch mode: one finger = mouse wheel scrolling" \
-            flutter/lib/common/widgets/remote_input.dart
-          grep -q "onPointerCancel: inputModel.onPointCancelImage" \
             flutter/lib/common/widgets/remote_input.dart
 
       - name: Install Flutter
