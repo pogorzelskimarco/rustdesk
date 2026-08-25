@@ -96,6 +96,7 @@ jobs:
             49c8618e385814477b873a9098a9cbc942251c0a \
             ea46360d90b7bf4ac77dd302773e9f793cf41772 \
             57ef2c81fc3977c38c036f67630474b1d5d60109
+          git apply .github/patches/android_trackpad_cancel_fix.patch
 
       - name: Install Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
