@@ -1,0 +1,18 @@
+diff --git a/flutter/lib/common/widgets/gestures.dart b/flutter/lib/common/widgets/gestures.dart
+--- a/flutter/lib/common/widgets/gestures.dart
++++ b/flutter/lib/common/widgets/gestures.dart
+@@ -25,8 +25,12 @@ mixin IgnoreDeviceGestureRecognizerMixin on GestureRecognizer {
+   int? Function()? ignoredDeviceIdOf;
+ 
+-  bool shouldIgnore(PointerDownEvent event) =>
+-      event.device == ignoredDeviceIdOf?.call();
++  // The Android keyboard-trackpad workaround is only for the synthesized
++  // trackpad drag, which Flutter reports as PointerDeviceKind.touch.
++  // Never filter stylus/invertedStylus even when Android happens to expose
++  // them with the same device id as another input source.
++  bool shouldIgnore(PointerDownEvent event) =>
++      event.kind == PointerDeviceKind.touch &&
++      event.device == ignoredDeviceIdOf?.call();
+ 
+   @override
+   void addAllowedPointer(PointerDownEvent event) {
