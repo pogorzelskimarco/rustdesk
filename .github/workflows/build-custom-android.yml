@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v4"
+  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v5"
 
 jobs:
   generate-bridge:
@@ -96,14 +96,15 @@ jobs:
 
           path = Path('flutter/lib/common/widgets/gestures.dart')
           text = path.read_text()
-          old = """  bool shouldIgnore(PointerDownEvent event) =>
-              event.device == ignoredDeviceIdOf?.call();"""
-          new = """  bool shouldIgnore(PointerDownEvent event) =>
-              event.kind == PointerDeviceKind.touch &&
-              event.device == ignoredDeviceIdOf?.call();"""
-          if old not in text:
-              raise SystemExit('Expected trackpad shouldIgnore block not found')
-          path.write_text(text.replace(old, new, 1))
+          needle = 'event.device == ignoredDeviceIdOf?.call();'
+          replacement = (
+              'event.kind == PointerDeviceKind.touch &&\n'
+              '      event.device == ignoredDeviceIdOf?.call();'
+          )
+          count = text.count(needle)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one trackpad device filter line, found {count}')
+          path.write_text(text.replace(needle, replacement, 1))
           PY
 
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
