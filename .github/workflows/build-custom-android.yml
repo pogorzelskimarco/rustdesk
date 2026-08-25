@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-one-finger-scroll"
+  VERSION: "1.4.9-touch-scroll-trackpad"
 
 jobs:
   generate-bridge:
@@ -80,6 +80,10 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           submodules: recursive
+
+      - name: Apply Lenovo trackpad touch-mode patch
+        shell: bash
+        run: git apply .github/patches/lenovo_trackpad_touchmode.patch
 
       - name: Install Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
