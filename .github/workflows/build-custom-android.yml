@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-v4"
+  VERSION: "1.4.9-touch-scroll-trackpad-v5"
 
 jobs:
   generate-bridge:
@@ -85,8 +85,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          git apply --check .github/patches/upstream_android_trackpad_fix.patch
-          git apply .github/patches/upstream_android_trackpad_fix.patch
+          curl -fL --retry 3 \
+            https://github.com/rustdesk/rustdesk/pull/15650.diff \
+            -o /tmp/android-trackpad.diff
+          git apply --3way /tmp/android-trackpad.diff
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
           grep -q "Mobile touch mode: one finger = mouse wheel scrolling" \
             flutter/lib/common/widgets/remote_input.dart
