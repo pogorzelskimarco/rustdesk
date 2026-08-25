@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-stylus"
+  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v2"
 
 jobs:
   generate-bridge:
@@ -90,9 +90,12 @@ jobs:
             -o /tmp/android-trackpad.diff
           git apply --3way /tmp/android-trackpad.diff
           git apply .github/patches/stylus_touchmode_fix.patch
+          git apply .github/patches/stylus_trackpad_device_filter_fix.patch
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
           grep -q "lastDeviceKind == PointerDeviceKind.touch" \
             flutter/lib/common/widgets/remote_input.dart
+          grep -q "event.kind == PointerDeviceKind.touch" \
+            flutter/lib/common/widgets/gestures.dart
 
       - name: Install Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
