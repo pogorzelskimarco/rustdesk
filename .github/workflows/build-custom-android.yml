@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-v5"
+  VERSION: "1.4.9-touch-scroll-trackpad-stylus"
 
 jobs:
   generate-bridge:
@@ -89,8 +89,9 @@ jobs:
             https://github.com/rustdesk/rustdesk/pull/15650.diff \
             -o /tmp/android-trackpad.diff
           git apply --3way /tmp/android-trackpad.diff
+          git apply .github/patches/stylus_touchmode_fix.patch
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
-          grep -q "Mobile touch mode: one finger = mouse wheel scrolling" \
+          grep -q "lastDeviceKind == PointerDeviceKind.touch" \
             flutter/lib/common/widgets/remote_input.dart
 
       - name: Install Flutter
