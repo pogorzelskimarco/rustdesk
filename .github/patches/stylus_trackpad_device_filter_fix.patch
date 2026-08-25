@@ -1,7 +1,7 @@
 diff --git a/flutter/lib/common/widgets/gestures.dart b/flutter/lib/common/widgets/gestures.dart
 --- a/flutter/lib/common/widgets/gestures.dart
 +++ b/flutter/lib/common/widgets/gestures.dart
-@@ -25,8 +25,12 @@ mixin IgnoreDeviceGestureRecognizerMixin on GestureRecognizer {
+@@ -25,8 +25,13 @@ mixin IgnoreDeviceGestureRecognizerMixin on GestureRecognizer {
    int? Function()? ignoredDeviceIdOf;
  
 -  bool shouldIgnore(PointerDownEvent event) =>
