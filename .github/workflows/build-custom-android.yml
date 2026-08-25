@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v3"
+  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v4"
 
 jobs:
   generate-bridge:
@@ -90,7 +90,22 @@ jobs:
             -o /tmp/android-trackpad.diff
           git apply --3way /tmp/android-trackpad.diff
           git apply .github/patches/stylus_touchmode_fix.patch
-          git apply .github/patches/stylus_trackpad_device_filter_fix.patch
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('flutter/lib/common/widgets/gestures.dart')
+          text = path.read_text()
+          old = """  bool shouldIgnore(PointerDownEvent event) =>
+              event.device == ignoredDeviceIdOf?.call();"""
+          new = """  bool shouldIgnore(PointerDownEvent event) =>
+              event.kind == PointerDeviceKind.touch &&
+              event.device == ignoredDeviceIdOf?.call();"""
+          if old not in text:
+              raise SystemExit('Expected trackpad shouldIgnore block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
           grep -q "trackpadHoverDeviceId" flutter/lib/models/input_model.dart
           grep -q "lastDeviceKind == PointerDeviceKind.touch" \
             flutter/lib/common/widgets/remote_input.dart
