@@ -1,0 +1,39 @@
+diff --git a/flutter/lib/models/input_model.dart b/flutter/lib/models/input_model.dart
+--- a/flutter/lib/models/input_model.dart
++++ b/flutter/lib/models/input_model.dart
+@@ -1694,6 +1694,24 @@ class InputModel {
+     }
+   }
+ 
++  /// Reset Android keyboard-trackpad state when the platform cancels a gesture.
++  /// Without this, a cancelled two-finger scroll can leave the trackpad latched
++  /// in scroll mode and suppress subsequent one-finger cursor hover movement.
++  void onPointCancelImage(PointerCancelEvent e) {
++    if (_trackpadHoverDeviceId == null ||
++        e.device != _trackpadHoverDeviceId ||
++        !_trackpadTwoFinger) {
++      return;
++    }
++
++    _trackpadTwoFinger = false;
++    _trackpadScrollUnsent = Offset.zero;
++
++    if (peerPlatform == kPeerPlatformAndroid) {
++      handlePointerEvent('touch', kMouseEventTypePanEnd, e.position);
++    }
++  }
++
+   void onPointMoveImage(PointerMoveEvent e) {
+     if (isViewOnly && !showMyCursor) return;
+     if (isViewCamera) return;
+diff --git a/flutter/lib/common/widgets/remote_input.dart b/flutter/lib/common/widgets/remote_input.dart
+--- a/flutter/lib/common/widgets/remote_input.dart
++++ b/flutter/lib/common/widgets/remote_input.dart
+@@ -613,6 +613,7 @@ class RawPointerMouseRegion extends StatelessWidget {
+         onPointerUp?.call(evt);
+         inputModel.onPointUpImage(evt);
+       },
++      onPointerCancel: inputModel.onPointCancelImage,
+       onPointerMove: inputModel.onPointMoveImage,
+       onPointerSignal: inputModel.onPointerSignalImage,
+       onPointerPanZoomStart: inputModel.onPointerPanZoomStart,
