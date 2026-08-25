@@ -1,0 +1,41 @@
+diff --git a/flutter/lib/common/widgets/remote_input.dart b/flutter/lib/common/widgets/remote_input.dart
+--- a/flutter/lib/common/widgets/remote_input.dart
++++ b/flutter/lib/common/widgets/remote_input.dart
+@@ -365,7 +365,9 @@ class _RawTouchGestureDetectorRegionState
+ 
+     // Mobile touch mode: a one-finger drag scrolls the remote system
+     // instead of holding and dragging the left mouse button.
+-    if (isMobile && ffiModel.touchMode) {
++    // Restrict this custom behavior to a real finger. Stylus/invertedStylus
++    // must keep RustDesk's normal touch path (move + left-button drag).
++    if (isMobile && ffiModel.touchMode && lastDeviceKind == PointerDeviceKind.touch) {
+       _touchModePanStarted = true;
+       _mouseScrollIntegral = 0;
+       return;
+@@ -419,7 +421,7 @@ class _RawTouchGestureDetectorRegionState
+     }
+ 
+     // Mobile touch mode: one finger = mouse wheel scrolling.
+-    if (isMobile && ffiModel.touchMode) {
++    if (isMobile && ffiModel.touchMode && lastDeviceKind == PointerDeviceKind.touch) {
+       if (!_touchModePanStarted) {
+         return;
+       }
+@@ -455,7 +457,7 @@ class _RawTouchGestureDetectorRegionState
+   onOneFingerPanEnd(DragEndDetails d) async {
+     _touchModePanStarted = false;
+ 
+-    if (isMobile && ffiModel.touchMode) {
++    if (isMobile && ffiModel.touchMode && lastDeviceKind == PointerDeviceKind.touch) {
+       _mouseScrollIntegral = 0;
+       return;
+     }
+@@ -481,7 +483,7 @@ class _RawTouchGestureDetectorRegionState
+ 
+   // scale + pan event
+   onTwoFingerScaleStart(ScaleStartDetails d) {
+-    if (isMobile && ffiModel.touchMode) {
++    if (isMobile && ffiModel.touchMode && lastDeviceKind == PointerDeviceKind.touch) {
+       _touchModePanStarted = false;
+       _mouseScrollIntegral = 0;
+     }
