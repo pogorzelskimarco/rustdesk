@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v2"
+  VERSION: "1.4.9-touch-scroll-trackpad-stylus-v3"
 
 jobs:
   generate-bridge:
