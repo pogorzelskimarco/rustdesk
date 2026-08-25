@@ -12,7 +12,7 @@ env:
   ANDROID_FLUTTER_VERSION: "3.24.5"
   NDK_VERSION: "r28c"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "1.4.9-touch-scroll-trackpad"
+  VERSION: "1.4.9-touch-scroll-trackpad-v2"
 
 jobs:
   generate-bridge:
@@ -81,9 +81,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Apply Lenovo trackpad touch-mode patch
+      - name: Apply upstream Android trackpad cursor fix
         shell: bash
-        run: git apply .github/patches/lenovo_trackpad_touchmode.patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch https://github.com/rustdesk/rustdesk.git \
+            11689cddbd0b6f3b334e93b639df480e920afcd2 \
+            49c8618e385814477b873a9098a9cbc942251c0a \
+            ea46360d90b7bf4ac77dd302773e9f793cf41772 \
+            57ef2c81fc3977c38c036f67630474b1d5d60109
+          git cherry-pick \
+            11689cddbd0b6f3b334e93b639df480e920afcd2 \
+            49c8618e385814477b873a9098a9cbc942251c0a \
+            ea46360d90b7bf4ac77dd302773e9f793cf41772 \
+            57ef2c81fc3977c38c036f67630474b1d5d60109
 
       - name: Install Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
